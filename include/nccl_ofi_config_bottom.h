@@ -62,4 +62,11 @@ static inline int memfd_create(const char *name, unsigned int flags)
 }
 #endif /* ifndef HAVE_MEMFD_CREATE */
 
+/* Use HAVE_GPU to guard GPU-specific code instead of checking both individually */
+#if defined(HAVE_CUDA) || defined(HAVE_ROCM)
+#define HAVE_GPU 1
+#else
+#define HAVE_GPU 0
+#endif
+
 #endif

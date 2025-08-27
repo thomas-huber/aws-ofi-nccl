@@ -6,7 +6,9 @@
 #include "config.h"
 
 #include <errno.h>
+#if HAVE_CUDA
 #include <cudaTypedefs.h>
+#endif
 #include <cuda_runtime_api.h>
 
 #include "nccl_ofi.h"
@@ -66,11 +68,9 @@ DECLARE_CUDA_FUNCTION(cuMemAlloc, 3020);
 DECLARE_CUDA_FUNCTION(cuMemFree, 3020);
 DECLARE_CUDA_FUNCTION(cuMemcpy, 4000);
 
-int nccl_net_ofi_cuda_init(void)
+/* ---- generic init expected by the gpu-generic layer ---- */
+static int nccl_net_ofi_cuda_init(void);
 {
-	int driverVersion = -1;
-	int runtimeVersion = -1;
-
 	{
 		cudaError_t res = cudaDriverGetVersion(&driverVersion);
 		if (res != cudaSuccess) {
@@ -110,7 +110,52 @@ int nccl_net_ofi_cuda_init(void)
 	return 0;
 }
 
-int nccl_net_ofi_cuda_flush_gpudirect_rdma_writes(void)
+int nccl_net_ofi_gpu_init(void) {
+  return nccl_net_ofi_cuda_init();
+}
+
+static int nccl_net_ofi_cuda_init(void)
+{
+  int driverVersion = -1;
+  int runtimeVersion = -1;
+
+  {
+    cudaError_t res = cudaDriverGetVersion(&driverVersion);
+    if (res != cudaSuccess) {
+      NCCL_OFI_WARN("Failed to query CUDA driver version.");
+      return -EINVAL;
+    }
+  }
+
+  {
+    cudaError_t res = cudaRuntimeGetVersion(&runtimeVersion);
+    if (res != cudaSuccess) {
+      NCCL_OFI_WARN("Failed to query CUDA runtime version.");
+      return -EINVAL;
+    }
+  }
+
+  NCCL_OFI_INFO(NCCL_INIT | NCCL_NET,
+                "Using CUDA driver version %d with runtime %d",
+                driverVersion, runtimeVersion);
+
+  RESOLVE_CUDA_FUNCTION(cuCtxGetDevice);
+  RESOLVE_CUDA_FUNCTION(cuDeviceGetAttribute);
+
+  if (HAVE_CUDA_GDRFLUSH_SUPPORT &&
+      nccl_net_ofi_cuda_have_gdr_support_attr() &&
+      ofi_nccl_cuda_flush_enable()) {
+    NCCL_OFI_WARN("CUDA flush enabled");
+    cuda_flush = true;
+  } else {
+    cuda_flush = false;
+  }
+
+  return 0;
+}
+
+/* ---- generic flush symbol used at call-sites ---- */
+int nccl_net_ofi_gpuFlushGPUDirectRDMAWrites(void)
 {
 #if HAVE_CUDA_GDRFLUSH_SUPPORT
 	static_assert(CUDA_VERSION >= 11030, "Requires cudart>=11.3");
@@ -122,6 +167,11 @@ int nccl_net_ofi_cuda_flush_gpudirect_rdma_writes(void)
 #endif
 }
 
+/* (kept for completeness; not strictly required if you only use the generic name) */
+int nccl_net_ofi_cuda_flush_gpudirect_rdma_writes(void)
+{
+  return nccl_net_ofi_gpuFlushGPUDirectRDMAWrites();
+}
 
 int nccl_net_ofi_cuda_get_num_devices(void)
 {
@@ -216,7 +266,6 @@ int nccl_net_ofi_get_cuda_device_for_addr(void *data, int *dev_id)
 
 bool nccl_net_ofi_cuda_have_gdr_support_attr(void)
 {
-#if HAVE_CUDA_GDRFLUSH_SUPPORT
 	if (pfn_cuCtxGetDevice == NULL || pfn_cuDeviceGetAttribute == NULL) {
 		return false;
 	}

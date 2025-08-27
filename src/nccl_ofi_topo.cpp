@@ -20,8 +20,13 @@
 #include "nccl_ofi_ofiutils.h"
 #include "nccl_ofi_platform.h"
 
+#if HAVE_CUDA
 static const uint8_t target_class_id = 0x03;		/* Display controller class */
 static const unsigned short target_vendor_id = 0x10de;	/* NVIDIA */
+#elif HAVE_ROCM
+static const uint8_t target_class_id = 0x03;		/* Display controller class */
+static const unsigned short target_vendor_id = 0x1002;	/* AMD */
+#endif
 
 /* Maximum length of the device property read from file by function
  * get_device_property() */
