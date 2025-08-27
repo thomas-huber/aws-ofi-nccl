@@ -89,10 +89,10 @@ AC_DEFUN([CHECK_PKG_CUDA], [
         [check_pkg_define=0
          $2])
 
-  AC_DEFINE_UNQUOTED([HAVE_CUDA], [${check_pkg_define}], [Defined to 1 if CUDA is available])
+
   AC_DEFINE_UNQUOTED([HAVE_CUDA_DMABUF_SUPPORT], [${check_cuda_dmabuf_define}], [Defined to 1 if CUDA DMA-BUF support is available])
   AC_DEFINE_UNQUOTED([HAVE_CUDA_GDRFLUSH_SUPPORT], [${check_cuda_gdr_flush_define}], [Defined to 1 if CUDA cuFlushGPUDirectRDMAWrites support is available])
-  AM_CONDITIONAL([HAVE_CUDA], [test "${check_pkg_found}" = "yes"])
+
 
   AC_SUBST([CUDA_LDFLAGS])
   AC_SUBST([CUDA_CPPFLAGS])

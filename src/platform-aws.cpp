@@ -357,7 +357,7 @@ exit:
 }
 
 
-#if HAVE_CUDA
+#if HAVE_CUDA || HAVE_ROCM
 /*
  * Try to set one of the in-order flags for either send/recv or rdma
  * on the current endpoint to true.  have_ordering will be the

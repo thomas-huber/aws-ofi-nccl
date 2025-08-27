@@ -20,6 +20,9 @@
 #include "nccl_ofi_math.h"
 #include "nccl_ofi_ofiutils.h"
 #include "nccl_ofi_platform.h"
+#if HAVE_ROCM
+#include "nccl_ofi_rocm.h"
+#endif
 
 #define EFA_PROVIDER_NAME "efa"
 #define IS_EFA_PROVIDER(NAME) (strcmp((NAME), EFA_PROVIDER_NAME)==0)
@@ -307,7 +310,7 @@ int nccl_ofi_ofiutils_init_connection(struct fi_info *info, struct fid_domain *d
 	 */
 	if (FI_VERSION_GE(info->fabric_attr->api_version,
 			  FI_VERSION(1, 18)) && support_gdr != GDR_UNSUPPORTED) {
-#if (HAVE_CUDA && HAVE_DECL_FI_OPT_CUDA_API_PERMITTED)
+#if ((HAVE_CUDA || HAVE_ROCM) && HAVE_DECL_FI_OPT_CUDA_API_PERMITTED)
 		bool optval = false;
 		ret = fi_setopt(&(*ep)->fid, FI_OPT_ENDPOINT,
 				FI_OPT_CUDA_API_PERMITTED, &optval,

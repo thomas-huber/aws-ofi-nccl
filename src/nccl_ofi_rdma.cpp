@@ -19,6 +19,8 @@
 #include "nccl_ofi_log.h"
 #if HAVE_CUDA
 #include "nccl_ofi_cuda.h"
+#elif HAVE_ROCM
+#include "nccl_ofi_rocm.h"
 #endif
 #include "nccl_ofi_environ.h"
 #include "nccl_ofi_ep_addr_list.h"
@@ -342,12 +344,12 @@ static int set_mr_req_attr(uint64_t mr_key,
 	case NCCL_PTR_HOST:
 		mr_attr->iface = FI_HMEM_SYSTEM;
 		break;
-#if HAVE_CUDA
+#if HAVE_CUDA || HAVE_ROCM
 	case NCCL_PTR_CUDA:
 		mr_attr->iface = FI_HMEM_CUDA;
 
 		/* Get CUDA device ID */
-		ret = nccl_net_ofi_get_cuda_device_for_addr(
+		ret = nccl_net_ofi_get_cuda_device(
 			(void*)nccl_ofi_mr_ckey_baseaddr(ckey),
 			&mr_attr->device.cuda);
 		if (OFI_UNLIKELY(ret != 0)) {
@@ -3999,11 +4001,11 @@ static int flush(nccl_net_ofi_recv_comm_t *recv_comm, int n, void **buffers,
 	if (ofi_nccl_gdr_flush_disable() || support_gdr == GDR_UNSUPPORTED)
 		goto exit;
 
-#if HAVE_CUDA
+#if HAVE_CUDA || HAVE_ROCM
 	if (cuda_flush) {
-		ret = nccl_net_ofi_cuda_flush_gpudirect_rdma_writes();
+		ret = nccl_net_ofi_gpuFlushGPUDirectRDMAWrites();
 		if (ret != 0) {
-			NCCL_OFI_WARN("Error performing CUDA GDR flush");
+			NCCL_OFI_WARN("Error performing GPU GDR flush");
 		}
 		goto exit;
 	}

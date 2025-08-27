@@ -22,6 +22,8 @@
 #include "nccl_ofi.h"
 #if HAVE_CUDA
 #include "nccl_ofi_cuda.h"
+#elif HAVE_ROCM
+#include "nccl_ofi_rocm.h"
 #endif
 #include "nccl_ofi_param.h"
 #include "nccl_ofi_sendrecv.h"
@@ -545,7 +547,7 @@ static int sendrecv_mr_buffers_register(struct fid_domain *domain,
 		}
 		mr_attr.iface = FI_HMEM_SYSTEM;
 		break;
-#if HAVE_CUDA
+#if HAVE_CUDA || HAVE_ROCM
 	case NCCL_PTR_CUDA:
 		if (support_fi_rma) {
 			mr_attr.access |= FI_REMOTE_READ;
@@ -553,7 +555,7 @@ static int sendrecv_mr_buffers_register(struct fid_domain *domain,
 		mr_attr.iface = FI_HMEM_CUDA;
 
 		/* Get CUDA device ID */
-		ret = nccl_net_ofi_get_cuda_device_for_addr((void *)nccl_ofi_mr_ckey_baseaddr(ckey),
+		ret = nccl_net_ofi_get_cuda_device((void *)nccl_ofi_mr_ckey_baseaddr(ckey),
 		                                            &mr_attr.device.cuda);
 		if (OFI_UNLIKELY(ret != 0)) {
 			goto exit;
@@ -697,7 +699,7 @@ static int sendrecv_mr_base_register(struct fid_domain *domain, struct fid_ep *e
 	/* Validate type of buffer */
 	bool valid_buffer_type = false;
 	if (type == NCCL_PTR_HOST) valid_buffer_type = true;
-#if HAVE_CUDA
+#if HAVE_CUDA || HAVE_ROCM
 	if (type == NCCL_PTR_CUDA) valid_buffer_type = true;
 #endif
 #if HAVE_NEURON
@@ -1110,11 +1112,11 @@ static int sendrecv_recv_comm_flush(nccl_net_ofi_recv_comm_t *recv_comm, int n, 
 	if (ofi_nccl_gdr_flush_disable() || support_gdr == GDR_UNSUPPORTED)
 		goto exit;
 
-#if HAVE_CUDA
+#if HAVE_CUDA && HAVE_FLUSH_GPU_DIRECT_RDMA_WRITE
 	if (cuda_flush) {
-		ret = nccl_net_ofi_cuda_flush_gpudirect_rdma_writes();
+		ret = nccl_net_ofi_gpuFlushGPUDirectRDMAWrites();
 		if (ret != 0) {
-			NCCL_OFI_WARN("Error performing CUDA GDR flush");
+			NCCL_OFI_WARN("Error performing GPU GDR flush");
 		}
 		goto exit;
 	}
